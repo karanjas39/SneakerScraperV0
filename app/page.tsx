@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Product } from "./types/Product";
 
 function HomePage() {
@@ -12,7 +12,7 @@ function HomePage() {
   const [error, setError] = useState<string>("");
 
   // Handle form submission
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -34,7 +34,7 @@ function HomePage() {
       const data = await response.json();
       setProducts(data);
     } catch (error) {
-      setError("Something went wrong. Please try again.");
+      setError("Something went wrong. Please try again. " + error);
     } finally {
       setLoading(false);
     }
