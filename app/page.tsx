@@ -4,9 +4,10 @@ import { FormEvent, useState } from "react";
 import { Product } from "./types/Product";
 
 function HomePage() {
-  // States to store query, max pages, and results
+  // States to store query, max pages, selected website, and results
   const [query, setQuery] = useState<string>("");
   const [maxPages, setMaxPages] = useState<number>(1);
+  const [selectedWebsite, setSelectedWebsite] = useState<string>("sneakerplug");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -18,8 +19,8 @@ function HomePage() {
     setError("");
 
     try {
-      // Fetch the data from the API
-      const response = await fetch("/api/scrape", {
+      // Dynamically set the API endpoint based on the selected website
+      const response = await fetch(`/api/scrape/${selectedWebsite}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -77,6 +78,23 @@ function HomePage() {
             max="3"
             className="p-2 border border-gray-300 rounded-md"
           />
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="website" className="text-lg font-medium mb-2">
+            Select Website
+          </label>
+          <select
+            id="website"
+            value={selectedWebsite}
+            onChange={(e) => setSelectedWebsite(e.target.value)}
+            className="p-2 border border-gray-300 rounded-md"
+          >
+            <option value="sneakerplug">SneakerPlug</option>
+            <option value="mainstreet">Mainstreet</option>
+            <option value="crepdogcrew">CrepDogCrew</option>
+            <option value="vegnonveg">Vegnonveg</option>
+          </select>
         </div>
 
         <button
