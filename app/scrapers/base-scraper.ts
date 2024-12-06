@@ -1,8 +1,11 @@
-import puppeteer, { Browser, Page } from "puppeteer";
+import { chromium, Browser, Page } from "playwright";
 
 export class BaseScraper {
+  /**
+   * Creates and launches a new Playwright browser instance
+   */
   static async createBrowser(): Promise<Browser> {
-    return puppeteer.launch({
+    return chromium.launch({
       headless: true,
       args: [
         "--no-sandbox",
@@ -10,34 +13,45 @@ export class BaseScraper {
         "--disable-dev-shm-usage",
         "--disable-accelerated-2d-canvas",
         "--disable-gpu",
-        "--window-size=1920x1080",
+        "--window-size=1920,1080",
       ],
     });
   }
 
+  /**
+   * Sets up a new page in the browser with custom configurations
+   */
   static async setupPage(browser: Browser): Promise<Page> {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setRequestInterception(true);
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    });
+    const page = await context.newPage();
 
-    page.on("request", (request) => {
-      const resourceType = request.resourceType();
+    // Intercept network requests
+    await page.route("**/*", (route) => {
+      const resourceType = route.request().resourceType();
       if (["image", "stylesheet", "font", "media"].includes(resourceType)) {
-        request.abort();
+        route.abort(); // Block unnecessary resources
       } else {
-        request.continue();
+        route.continue();
       }
     });
 
     return page;
   }
 
+  /**
+   * Formats a price string by removing non-numeric characters
+   */
   static formatPrice(price: string | null): string | null {
     if (!price) return null;
     const cleanPrice = price.replace(/[^\d.]/g, "");
     return cleanPrice ? `₹${cleanPrice}` : null;
   }
 
+  /**
+   * Safely navigates to a URL and waits for a specific selector
+   */
   static async safeNavigate(
     page: Page,
     url: string,
@@ -45,7 +59,7 @@ export class BaseScraper {
   ): Promise<void> {
     try {
       await Promise.race([
-        page.goto(url, { waitUntil: "networkidle0" }),
+        page.goto(url, { waitUntil: "networkidle" }),
         page.waitForSelector(selector, { timeout: 10000 }),
       ]);
     } catch (error) {
