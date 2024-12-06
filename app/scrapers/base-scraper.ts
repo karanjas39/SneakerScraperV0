@@ -1,20 +1,14 @@
-import { chromium, Browser, Page } from "playwright";
+import { Browser, Page } from "playwright-core"; // Import Browser and Page from playwright-core
+import * as playwright from "playwright-aws-lambda"; // Import playwright-aws-lambda
 
 export class BaseScraper {
   /**
-   * Creates and launches a new Playwright browser instance
+   * Creates and launches a new Playwright browser instance using playwright-aws-lambda
    */
   static async createBrowser(): Promise<Browser> {
-    return chromium.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--disable-gpu",
-        "--window-size=1920,1080",
-      ],
+    // Launch browser using playwright-aws-lambda's launchChromium
+    return playwright.launchChromium({
+      headless: true, // Ensures the browser runs in headless mode
     });
   }
 
@@ -59,7 +53,7 @@ export class BaseScraper {
   ): Promise<void> {
     try {
       await Promise.race([
-        page.goto(url, { waitUntil: "networkidle" }),
+        page.goto(url, { waitUntil: "domcontentloaded" }),
         page.waitForSelector(selector, { timeout: 10000 }),
       ]);
     } catch (error) {
