@@ -119,6 +119,101 @@ export async function limitedEdt(query: string): Promise<ScrapingResult> {
   }
 }
 
+export async function hypefly(query: string): Promise<ScrapingResult> {
+  try {
+    const apiUrl = `https://meili.hypefly.co.in/multi-search`;
+
+    const requestData = {
+      queries: [
+        {
+          indexUid: "product",
+          q: query,
+          attributesToHighlight: ["*"],
+          facets: [
+            "brands.name",
+            "lowestPrice",
+            "productCategory.name",
+            "productType.name",
+            "variants.size",
+          ],
+          filter: ["lowestPrice>=0"],
+          highlightPostTag: "__ais-highlight__",
+          highlightPreTag: "__ais-highlight__",
+          limit: 21,
+          offset: 20,
+          sort: ["id:desc"],
+        },
+      ],
+    };
+
+    const { data } = await axios.post(apiUrl, requestData, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+        Authorization: `Bearer ${process.env.HYPEFLY_TOKEN}`,
+      },
+    });
+
+    const products = data.results[0].hits || [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedProducts: Product[] = products.map((product: any) => {
+      const { name, lowestPrice, slug, variants } = product;
+
+      const variantsWithPriceDifference = variants
+        .filter(
+          (variant: { compareAtPrice: null }) => variant.compareAtPrice !== null
+        )
+        .map((variant: { compareAtPrice: number; salePrice: number }) => ({
+          ...variant,
+          priceDifference: variant.compareAtPrice - variant.salePrice,
+        }));
+
+      const maxDifferenceVariant = variantsWithPriceDifference.reduce(
+        (
+          max: { priceDifference: number },
+          current: { priceDifference: number }
+        ) => (current.priceDifference > max.priceDifference ? current : max),
+        variantsWithPriceDifference[0]
+      );
+
+      const productUrl = `https://hypefly.co.in/products/${slug}`;
+
+      const salePrice = !maxDifferenceVariant
+        ? `₹${lowestPrice}`
+        : `₹${maxDifferenceVariant.salePrice}`;
+      const regularPrice = maxDifferenceVariant
+        ? `₹${maxDifferenceVariant.compareAtPrice}`
+        : `₹${salePrice}`;
+
+      return {
+        name: name || "No name available",
+        link: productUrl,
+        salePrice: salePrice,
+        regularPrice: regularPrice,
+      };
+    });
+
+    return {
+      data: formattedProducts,
+      message:
+        formattedProducts.length > 0
+          ? `Successfully found ${formattedProducts.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("API error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
+
 export async function vegnonveg(query: string): Promise<ScrapingResult> {
   try {
     const url = `https://www.vegnonveg.com/search?q=${encodeURIComponent(

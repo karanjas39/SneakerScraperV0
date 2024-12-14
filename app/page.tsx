@@ -17,6 +17,7 @@ export default function Home() {
     "mainstreet",
     "nike",
     "limitedEdt",
+    "hypefly",
   ];
 
   const handleSearch = async (query: string) => {
