@@ -1,61 +1,48 @@
 import { Product, ScrapingResult } from "../types";
-import { BaseScraper } from "./base-scraper";
+import axios from "axios";
+import * as cheerio from "cheerio";
 
 export async function crepdogcrew(query: string): Promise<ScrapingResult> {
-  const browser = await BaseScraper.createBrowser();
-  const page = await BaseScraper.setupPage(browser);
-
   try {
-    const baseUrl = `https://crepdogcrew.com/search?q=${encodeURIComponent(
-      query
-    )}`;
-    await BaseScraper.safeNavigate(page, baseUrl, ".product-card__info");
+    const url = `https://crepdogcrew.com/search?q=${encodeURIComponent(query)}`;
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+    });
 
-    const products = await page.evaluate(() => {
-      const productElements = document.querySelectorAll(".product-card__info");
-      const extractedProducts: Product[] = [];
+    const $ = cheerio.load(data);
+    const products: Product[] = [];
 
-      productElements.forEach((element) => {
-        const name =
-          element
-            .querySelector(".product-card__title a")
-            ?.textContent?.trim() || null;
-        const link =
-          element
-            .querySelector(".product-card__title a")
-            ?.getAttribute("href") || null;
-        const productUrl = link ? `https://crepdogcrew.com${link}` : null;
+    $(".product-card__info").each((index, element) => {
+      const name = $(element).find(".product-card__title a").text().trim();
+      const link = $(element).find(".product-card__title a").attr("href");
+      const productUrl = link ? `https://crepdogcrew.com${link}` : null;
 
-        const extractPrice = (priceElement: Element | null): string | null => {
-          if (!priceElement) return null;
-          const priceText = priceElement
-            .querySelector(".cvc-money")
-            ?.textContent?.trim();
-          if (!priceText) return null;
-          return priceText.replace(/₹|\s|,/g, "");
-        };
+      const salePriceEl = $(element).find("sale-price .cvc-money");
+      const regularPriceEl = $(element).find("compare-at-price .cvc-money");
 
-        const salePriceElement = element.querySelector("sale-price");
-        const regularPriceElement = element.querySelector("compare-at-price");
+      const salePrice = salePriceEl
+        .text()
+        .trim()
+        .replace(/₹|\s|,/g, "");
+      const regularPrice =
+        regularPriceEl
+          .text()
+          .trim()
+          .replace(/₹|\s|,/g, "") || salePrice;
 
-        const salePrice = extractPrice(salePriceElement);
-        const regularPrice = extractPrice(regularPriceElement) || salePrice;
-
-        if (name && productUrl) {
-          extractedProducts.push({
-            name,
-            link: productUrl,
-            salePrice: salePrice ? `₹${salePrice}` : null,
-            regularPrice: regularPrice
-              ? `₹${regularPrice}`
-              : salePrice
-              ? `₹${salePrice}`
-              : null,
-          });
-        }
-      });
-
-      return extractedProducts;
+      if (name && productUrl) {
+        products.push({
+          name,
+          link: productUrl,
+          salePrice: salePrice ? `₹${salePrice}` : null,
+          regularPrice: regularPrice ? `₹${regularPrice}` : null,
+        });
+      }
     });
 
     return {
@@ -66,6 +53,7 @@ export async function crepdogcrew(query: string): Promise<ScrapingResult> {
           : "No products found",
     };
   } catch (error) {
+    console.error("Scraping error:", error);
     return {
       data: [],
       message:
@@ -73,59 +61,112 @@ export async function crepdogcrew(query: string): Promise<ScrapingResult> {
           ? `Error fetching products: ${error.message}`
           : "An unknown error occurred",
     };
-  } finally {
-    await browser.close();
+  }
+}
+
+export async function limitedEdt(query: string): Promise<ScrapingResult> {
+  try {
+    const limit = 20;
+    const apiUrl = `https://services.mybcapps.com/bc-sf-filter/search/suggest?t=${Date.now()}&shop=limitededt-india.myshopify.com&locale=en&q=${encodeURIComponent(
+      query
+    )}&sid=7ff887fa-5401-4aab-959c-4b5c75191cf8&re_run_if_typo=true&event_type=suggest&pg=search_page&product_limit=${limit}&collection_limit=3&suggestion_limit=5&page_limit=3&suggestionMode=prod&dym_limit=2`;
+
+    const { data } = await axios.get(apiUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
+
+    const products = data.products || [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedProducts: Product[] = products.map((product: any) => {
+      const { title, handle, price_min, compare_at_price_min } = product;
+
+      const productUrl = `https://limitededt.in/products/${handle}`;
+
+      const salePrice = price_min ? `₹${price_min}` : null;
+      const regularPrice = compare_at_price_min
+        ? `₹${compare_at_price_min}`
+        : salePrice;
+
+      return {
+        name: title || "No name available",
+        link: productUrl,
+        salePrice: salePrice,
+        regularPrice: regularPrice,
+      };
+    });
+
+    return {
+      data: formattedProducts,
+      message:
+        formattedProducts.length > 0
+          ? `Successfully found ${formattedProducts.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("API error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
   }
 }
 
 export async function vegnonveg(query: string): Promise<ScrapingResult> {
-  const browser = await BaseScraper.createBrowser();
-  const page = await BaseScraper.setupPage(browser);
-
   try {
-    const baseUrl = `https://www.vegnonveg.com/search?q=${encodeURIComponent(
+    const url = `https://www.vegnonveg.com/search?q=${encodeURIComponent(
       query
     )}`;
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+    });
 
-    await BaseScraper.safeNavigate(page, baseUrl, ".product");
+    const $ = cheerio.load(data);
+    const products: Product[] = [];
 
-    const products = await page.evaluate(() => {
-      const productElements = document.querySelectorAll(".product");
-      const extractedProducts: Product[] = [];
+    $(".product").each((index, element) => {
+      const name = $(element).find(".p-name").text().trim();
+      const linkElement = $(element).find("a");
+      const link = linkElement.attr("href");
+      const productUrl =
+        link && link.startsWith("http")
+          ? link
+          : `https://www.vegnonveg.com${link}`;
 
-      productElements.forEach((element) => {
-        const name =
-          element.querySelector(".p-name")?.textContent?.trim() || null;
-        const linkElement = element.querySelector("a");
-        const link = linkElement?.getAttribute("href") || null;
-        const productUrl =
-          link && link.startsWith("http")
-            ? link
-            : `https://www.vegnonveg.com${link}`;
+      const priceSection = $(element).find(".info p:last-child");
+      const salePriceElement = priceSection.find("span:not(:has(del))");
+      const regularPriceElement = priceSection.find("del");
 
-        const priceSection = element.querySelector(".info p:last-child");
-        const salePriceElement = priceSection?.querySelector(
-          "span:not(:has(del))"
-        );
-        const regularPriceElement = priceSection?.querySelector("del");
+      const salePrice = salePriceElement
+        .text()
+        .trim()
+        .replace(/₹|\s|,/g, "");
+      const regularPrice =
+        regularPriceElement
+          .text()
+          .trim()
+          .replace(/₹|\s|,/g, "") || salePrice;
 
-        const salePrice =
-          salePriceElement?.textContent?.trim().replace(/₹|\s|,/g, "") || null;
-        const regularPrice =
-          regularPriceElement?.textContent?.trim().replace(/₹|\s|,/g, "") ||
-          null;
-
-        if (name && productUrl) {
-          extractedProducts.push({
-            name,
-            link: productUrl,
-            salePrice: salePrice ? `₹${salePrice}` : null,
-            regularPrice: regularPrice ? `₹${regularPrice}` : salePrice,
-          });
-        }
-      });
-
-      return extractedProducts;
+      if (name && productUrl) {
+        products.push({
+          name,
+          link: productUrl,
+          salePrice: salePrice ? `₹${salePrice}` : null,
+          regularPrice: regularPrice ? `₹${regularPrice}` : null,
+        });
+      }
     });
 
     return {
@@ -136,6 +177,7 @@ export async function vegnonveg(query: string): Promise<ScrapingResult> {
           : "No products found",
     };
   } catch (error) {
+    console.error("Scraping error:", error);
     return {
       data: [],
       message:
@@ -143,51 +185,46 @@ export async function vegnonveg(query: string): Promise<ScrapingResult> {
           ? `Error fetching products: ${error.message}`
           : "An unknown error occurred",
     };
-  } finally {
-    await browser.close();
   }
 }
 
 export async function sneakerplug(query: string): Promise<ScrapingResult> {
-  const browser = await BaseScraper.createBrowser();
-  const page = await BaseScraper.setupPage(browser);
-
   try {
-    const baseUrl = `https://sneakerplug.co.in/search?q=${encodeURIComponent(
+    const url = `https://sneakerplug.co.in/search?q=${encodeURIComponent(
       query
     )}`;
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+    });
 
-    await BaseScraper.safeNavigate(page, baseUrl, ".innerer");
+    const $ = cheerio.load(data);
+    const products: Product[] = [];
 
-    const products = await page.evaluate(() => {
-      const productElements = document.querySelectorAll(".innerer");
-      const extractedProducts: Product[] = [];
+    $(".innerer").each((index, element) => {
+      const name = $(element).find(".product-block__title").text().trim();
+      const linkElement = $(element).find("a.product-link");
+      const link = linkElement.attr("href");
+      const productUrl = link ? `https://sneakerplug.co.in${link}` : null;
 
-      productElements.forEach((element) => {
-        const name =
-          element.querySelector(".product-block__title")?.textContent?.trim() ||
-          null;
-        const linkElement = element.querySelector("a.product-link");
-        const link = linkElement?.getAttribute("href") || null;
-        const productUrl = link ? `https://sneakerplug.co.in${link}` : null;
+      const price = $(element)
+        .find(".product-price__amount .money")
+        .text()
+        .trim()
+        .replace(/₹|\s|,/g, "");
 
-        const price =
-          element
-            .querySelector(".product-price__amount .money")
-            ?.textContent?.trim()
-            .replace(/₹|\s|,/g, "") || null;
-
-        if (name && productUrl && price) {
-          extractedProducts.push({
-            name,
-            link: productUrl,
-            salePrice: `₹${price}`,
-            regularPrice: `₹${price}`,
-          });
-        }
-      });
-
-      return extractedProducts;
+      if (name && productUrl && price) {
+        products.push({
+          name,
+          link: productUrl,
+          salePrice: `₹${price}`,
+          regularPrice: `₹${price}`,
+        });
+      }
     });
 
     return {
@@ -198,6 +235,7 @@ export async function sneakerplug(query: string): Promise<ScrapingResult> {
           : "No products found",
     };
   } catch (error) {
+    console.error("Scraping error:", error);
     return {
       data: [],
       message:
@@ -205,68 +243,69 @@ export async function sneakerplug(query: string): Promise<ScrapingResult> {
           ? `Error fetching products: ${error.message}`
           : "An unknown error occurred",
     };
-  } finally {
-    await browser.close();
   }
 }
 
 export async function mainstreet(query: string): Promise<ScrapingResult> {
-  const browser = await BaseScraper.createBrowser();
-  const page = await BaseScraper.setupPage(browser);
-
   try {
-    const baseUrl = `https://marketplace.mainstreet.co.in/search?q=${encodeURIComponent(
+    const url = `https://marketplace.mainstreet.co.in/search?q=${encodeURIComponent(
       query
     )}`;
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+    });
 
-    await BaseScraper.safeNavigate(page, baseUrl, ".card__information");
+    const $ = cheerio.load(data);
+    const products: Product[] = [];
 
-    const products = await page.evaluate(() => {
-      const productElements = document.querySelectorAll(".card__information");
-      const extractedProducts: Product[] = [];
+    $(".card__information").each((index, element) => {
+      const name = $(element).find("a").text().trim();
+      const link = $(element).find("a").attr("href");
+      const productUrl = link
+        ? `https://marketplace.mainstreet.co.in${link}`
+        : null;
 
-      productElements.forEach((element) => {
-        const name = element.querySelector("a")?.textContent?.trim() || null;
-        const link = element.querySelector("a")?.getAttribute("href") || null;
-        const productUrl = link
-          ? `https://marketplace.mainstreet.co.in${link}`
-          : null;
+      const priceContainer = $(element).find(".price");
+      const isOnSale = priceContainer.hasClass("price--on-sale");
 
-        const extractPrice = (selector: string): string | null => {
-          const priceElement = element.querySelector(selector);
-          if (!priceElement) return null;
-          const priceText = priceElement.textContent?.trim();
-          if (!priceText) return null;
-          return priceText.replace(/₹|From|,|\s|Rs./g, "").trim();
-        };
+      let salePrice: string | null = null;
+      let regularPrice: string | null = null;
 
-        const priceContainer = element.querySelector(".price");
-        const isOnSale = priceContainer?.classList.contains("price--on-sale");
+      if (isOnSale) {
+        regularPrice = priceContainer
+          .find(".price__sale .price-item--regular")
+          .text()
+          .trim()
+          .replace(/₹|From|,|\s|Rs./g, "");
 
-        let salePrice: string | null = null;
-        let regularPrice: string | null = null;
+        salePrice = priceContainer
+          .find(".price__sale .price-item--sale")
+          .text()
+          .trim()
+          .replace(/₹|From|,|\s|Rs./g, "");
+      } else {
+        regularPrice = priceContainer
+          .find(".price__regular .price-item--regular")
+          .text()
+          .trim()
+          .replace(/₹|From|,|\s|Rs./g, "");
 
-        if (isOnSale) {
-          regularPrice = extractPrice(".price__sale .price-item--regular");
-          salePrice = extractPrice(".price__sale .price-item--sale");
-        } else {
-          regularPrice = extractPrice(".price__regular .price-item--regular");
-          salePrice = regularPrice;
-        }
+        salePrice = regularPrice;
+      }
 
-        if (name && productUrl) {
-          extractedProducts.push({
-            name,
-            link: productUrl,
-            salePrice,
-            regularPrice,
-          });
-        }
-      });
-
-      return extractedProducts.filter(
-        (product) => product.salePrice !== null && product.regularPrice !== null
-      );
+      if (name && productUrl && salePrice) {
+        products.push({
+          name,
+          link: productUrl,
+          salePrice: `₹${salePrice}`,
+          regularPrice: regularPrice ? `₹${regularPrice}` : `₹${salePrice}`,
+        });
+      }
     });
 
     return {
@@ -277,6 +316,7 @@ export async function mainstreet(query: string): Promise<ScrapingResult> {
           : "No products found",
     };
   } catch (error) {
+    console.error("Scraping error:", error);
     return {
       data: [],
       message:
@@ -284,58 +324,45 @@ export async function mainstreet(query: string): Promise<ScrapingResult> {
           ? `Error fetching products: ${error.message}`
           : "An unknown error occurred",
     };
-  } finally {
-    await browser.close();
   }
 }
 
 export async function nike(query: string): Promise<ScrapingResult> {
-  const browser = await BaseScraper.createBrowser();
-  const page = await BaseScraper.setupPage(browser);
-
   try {
-    const baseUrl = `https://www.nike.com/in/w?q=${encodeURIComponent(query)}`;
+    const url = `https://www.nike.com/in/w?q=${encodeURIComponent(query)}`;
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+    });
 
-    await BaseScraper.safeNavigate(page, baseUrl, ".product-card");
+    const $ = cheerio.load(data);
+    const products: Product[] = [];
 
-    const products = await page.evaluate(() => {
-      const productElements = document.querySelectorAll(".product-card");
-      const extractedProducts: Product[] = [];
+    $(".product-card").each((index, element) => {
+      const name = $(element).find(".product-card__title").text().trim();
+      const link = $(element).find(".product-card__link-overlay").attr("href");
+      const productUrl =
+        link && link.startsWith("http") ? link : `https://www.nike.com${link}`;
 
-      productElements.forEach((element) => {
-        const name =
-          element.querySelector(".product-card__title")?.textContent?.trim() ||
-          null;
-        const link =
-          element
-            .querySelector(".product-card__link-overlay")
-            ?.getAttribute("href") || null;
-        const productUrl =
-          link && link.startsWith("http")
-            ? link
-            : `https://www.nike.com${link}`;
+      const priceWrapper = $(element).find(".product-card__price-wrapper");
+      const salePrice = priceWrapper
+        .find(".product-price.is--current-price")
+        .text()
+        .trim()
+        .replace(/MRP\s*:\s*₹|\s|,/g, "");
 
-        const priceWrapper = element.querySelector(
-          ".product-card__price-wrapper"
-        );
-        const salePrice =
-          priceWrapper
-            ?.querySelector(".product-price.is--current-price")
-            ?.textContent?.trim()
-            .replace(/MRP\s*:\s*₹|\s|,/g, "") || null;
-        const regularPrice = salePrice;
-
-        if (name && productUrl) {
-          extractedProducts.push({
-            name,
-            link: productUrl,
-            salePrice: salePrice ? `₹${salePrice}` : null,
-            regularPrice: regularPrice ? `₹${regularPrice}` : salePrice,
-          });
-        }
-      });
-
-      return extractedProducts;
+      if (name && productUrl) {
+        products.push({
+          name,
+          link: productUrl,
+          salePrice: `₹${salePrice}`,
+          regularPrice: `₹${salePrice}`,
+        });
+      }
     });
 
     return {
@@ -346,6 +373,7 @@ export async function nike(query: string): Promise<ScrapingResult> {
           : "No products found",
     };
   } catch (error) {
+    console.error("Scraping error:", error);
     return {
       data: [],
       message:
@@ -353,163 +381,5 @@ export async function nike(query: string): Promise<ScrapingResult> {
           ? `Error fetching products: ${error.message}`
           : "An unknown error occurred",
     };
-  } finally {
-    await browser.close();
-  }
-}
-
-export async function hypefly(query: string): Promise<ScrapingResult> {
-  const browser = await BaseScraper.createBrowser();
-  const page = await BaseScraper.setupPage(browser);
-
-  try {
-    const baseUrl = `https://hypefly.co.in/search?query=${encodeURIComponent(
-      query
-    )}`;
-
-    await BaseScraper.safeNavigate(page, baseUrl, ".ais-InfiniteHits-item");
-
-    const products: Product[] = await page.evaluate(() => {
-      const productElements = document.querySelectorAll(
-        ".ais-InfiniteHits-item"
-      );
-      const extractedProducts: Product[] = [];
-
-      productElements.forEach((element) => {
-        const nameElement = element.querySelector("h2");
-        const name = nameElement ? nameElement.textContent?.trim() : null;
-
-        const linkElement = element.querySelector("a");
-        const relativeLink = linkElement
-          ? linkElement.getAttribute("href")
-          : null;
-        const productUrl = relativeLink
-          ? `https://hypefly.co.in${relativeLink}`
-          : null;
-
-        const priceContainer = element.querySelector(".font-semibold");
-
-        const regularPriceElement = priceContainer?.querySelector("del");
-        let regularPrice = regularPriceElement
-          ? regularPriceElement.textContent?.replace(/[₹,]/g, "").trim()
-          : null;
-
-        const priceText = priceContainer?.textContent || "";
-        const salePriceMatch = priceText.match(/from ₹([\d,]+)/);
-        const salePrice = salePriceMatch
-          ? salePriceMatch[1].replace(/,/g, "").trim()
-          : null;
-
-        if (!regularPrice && salePrice) {
-          regularPrice = salePrice;
-        }
-
-        if (name && productUrl) {
-          extractedProducts.push({
-            name,
-            link: productUrl,
-            salePrice: salePrice ? `₹${salePrice}` : null,
-            regularPrice: regularPrice ? `₹${regularPrice}` : null,
-          });
-        }
-      });
-
-      return extractedProducts;
-    });
-
-    return {
-      data: products,
-      message:
-        products.length > 0
-          ? `Successfully found ${products.length} products`
-          : "No products found",
-    };
-  } catch (error) {
-    return {
-      data: [],
-      message:
-        error instanceof Error
-          ? `Error fetching products: ${error.message}`
-          : "An unknown error occurred",
-    };
-  } finally {
-    await browser.close();
-  }
-}
-
-export async function stockx(query: string): Promise<ScrapingResult> {
-  const browser = await BaseScraper.createBrowser();
-  const page = await BaseScraper.setupPage(browser);
-
-  try {
-    const baseUrl = `https://stockx.com/search?s=${encodeURIComponent(query)}`;
-
-    await BaseScraper.safeNavigate(
-      page,
-      baseUrl,
-      '[data-component="brand-tile"]'
-    );
-
-    const products: Product[] = await page.evaluate(() => {
-      const productElements = document.querySelectorAll(
-        '[data-component="brand-tile"]'
-      );
-      const extractedProducts: Product[] = [];
-
-      productElements.forEach((element) => {
-        try {
-          const nameElement = element.querySelector(
-            '[data-testid="product-tile-title"]'
-          );
-          const name = nameElement?.textContent?.trim() || null;
-
-          const linkElement = element.querySelector(
-            'a[data-testid="productTile-ProductSwitcherLink"]'
-          );
-          const relativeLink = linkElement?.getAttribute("href");
-          const productUrl = relativeLink
-            ? `https://stockx.com${relativeLink}`
-            : null;
-
-          const priceElement = element.querySelector(
-            '[data-testid="product-tile-lowest-ask-amount"]'
-          );
-          const price = priceElement?.textContent?.trim() || null;
-
-          const cleanPrice = price?.replace(/^\$/, "").trim() || null;
-
-          if (name && productUrl && cleanPrice) {
-            extractedProducts.push({
-              name,
-              link: productUrl,
-              regularPrice: `$${cleanPrice}`,
-              salePrice: `$${cleanPrice}`,
-            });
-          }
-        } catch (error) {
-          console.error("Error processing product:", error);
-        }
-      });
-
-      return extractedProducts;
-    });
-
-    return {
-      data: products,
-      message:
-        products.length > 0
-          ? `Successfully found ${products.length} products`
-          : "No products found",
-    };
-  } catch (error) {
-    return {
-      data: [],
-      message:
-        error instanceof Error
-          ? `Error fetching products: ${error.message}`
-          : "An unknown error occurred",
-    };
-  } finally {
-    await browser.close();
   }
 }

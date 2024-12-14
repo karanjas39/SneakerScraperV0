@@ -11,13 +11,12 @@ export default function Home() {
   const [results, setResults] = useState<Record<string, Product[]>>({});
 
   const scrapers = [
-    "crepdogcrew",
-    "sneakerplug",
-    "vegnonveg",
-    "mainstreet",
-    "nike",
-    "hypefly",
-    "stockx",
+    // "crepdogcrew",
+    // "sneakerplug",
+    // "vegnonveg",
+    // "mainstreet",
+    // "nike",
+    "superkicks",
   ];
 
   const handleSearch = async (query: string) => {
