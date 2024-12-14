@@ -33,7 +33,7 @@ export function SearchInput({ onSearch }: SearchInputProps) {
         const response = await fetch("/api/scrape", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: debouncedInput, app: "superkicks" }),
+          body: JSON.stringify({ query: debouncedInput, app: "mainstreet" }),
         });
         const data = await response.json();
         setSuggestions(data.data || []);
@@ -69,7 +69,8 @@ export function SearchInput({ onSearch }: SearchInputProps) {
   const handleSuggestionClick = (suggestion: Suggestion) => {
     setInput(suggestion.name);
     setShowSuggestions(false);
-    onSearch(suggestion.name);
+
+    onSearch(input);
   };
 
   return (
