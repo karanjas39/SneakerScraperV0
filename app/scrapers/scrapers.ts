@@ -172,58 +172,130 @@ export async function footlocker(query: string): Promise<ScrapingResult> {
   }
 }
 
-// export async function goat(query: string): Promise<ScrapingResult> {
-//   try {
-//     const limit = 20;
-//     const apiUrl = `https://ac.cnstrc.com/autocomplete/${encodeURIComponent(
-//       query
-//     )}&?c=ciojs-client-2.54.0&key=key_XT7bjdbvjgECO5d8&i=8062dd95-06e0-4981-9128-926c300bb524&s=1&num_results_Products=${limit}&num_results_Collections=20&_dt=1734231690309`;
+export async function goat(query: string): Promise<ScrapingResult> {
+  try {
+    const limit = 20;
+    const apiUrl = `https://ac.cnstrc.com/autocomplete/${encodeURIComponent(
+      query
+    )}&?c=ciojs-client-2.54.0&key=key_XT7bjdbvjgECO5d8&i=8062dd95-06e0-4981-9128-926c300bb524&s=1&num_results_Products=${limit}&num_results_Collections=20&_dt=1734231690309`;
 
-//     const { data } = await axios.get(apiUrl, {
-//       headers: {
-//         "User-Agent":
-//           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-//         Accept: "application/json",
-//       },
-//     });
+    const { data } = await axios.get(apiUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
 
-//     const products = data.sections.Products || [];
+    const products = data.sections.Products || [];
 
-//     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-//     const formattedProducts: Product[] = products.map((product: any) => {
-//       const { slug, value } = product;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedProducts: Product[] = products.map((product: any) => {
+      const {
+        value,
+        data: { lowest_price_cents, retail_price_cents, slug },
+      } = product;
 
-//       const productUrl = `https://www.goat.com/sneakers/${slug}`;
+      const productUrl = `https://www.goat.com/sneakers/${slug}`;
 
-//       const salePrice = discountedPrice ? `₹${discountedPrice}` : null;
-//       const regularPrice = price ? `₹${price}` : `₹${salePrice}`;
+      const salePrice = retail_price_cents
+        ? `$${retail_price_cents / 100}`
+        : `$${lowest_price_cents / 100}`;
+      const regularPrice = lowest_price_cents
+        ? `$${lowest_price_cents / 100}`
+        : `$${salePrice}`;
 
-//       return {
-//         name: value || "No name available",
-//         link: productUrl,
-//         salePrice: salePrice,
-//         regularPrice: regularPrice,
-//       };
-//     });
+      return {
+        name: value || "No name available",
+        link: productUrl,
+        salePrice: salePrice,
+        regularPrice: regularPrice,
+      };
+    });
 
-//     return {
-//       data: formattedProducts,
-//       message:
-//         formattedProducts.length > 0
-//           ? `Successfully found ${formattedProducts.length} products`
-//           : "No products found",
-//     };
-//   } catch (error) {
-//     console.error("API error:", error);
-//     return {
-//       data: [],
-//       message:
-//         error instanceof Error
-//           ? `Error fetching products: ${error.message}`
-//           : "An unknown error occurred",
-//     };
-//   }
-// }
+    return {
+      data: formattedProducts,
+      message:
+        formattedProducts.length > 0
+          ? `Successfully found ${formattedProducts.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("API error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
+
+export async function fightclub(query: string): Promise<ScrapingResult> {
+  try {
+    const endpoint = "https://2fwotdvm2o-dsn.algolia.net/1/indexes/*/queries";
+
+    const queryParams = {
+      "x-algolia-agent":
+        "Algolia for JavaScript (4.14.3); Browser (lite); JS Helper (3.11.1); react (18.2.0); react-instantsearch (6.38.1)",
+      "x-algolia-api-key": "10cf0ae11ca33a8c7c80a8c6bd926bdf",
+      "x-algolia-application-id": "2FWOTDVM2O",
+    };
+
+    const body = {
+      requests: [
+        {
+          indexName: "product_variants_v2_flight_club",
+          params: `distinct=true&facets=%5B%5D&highlightPostTag=%3C%2Fais-highlight-0000000000%3E&highlightPreTag=%3Cais-highlight-0000000000%3E&hitsPerPage=10&query=${query}&tagFilters=`,
+        },
+      ],
+    };
+
+    const { data } = await axios.post(endpoint, body, { params: queryParams });
+
+    const products = data.results[0].hits || [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedProducts: Product[] = products.map((product: any) => {
+      const { name, slug, lowest_price_cents_usd, retail_price_cents_usd } =
+        product;
+
+      const productUrl = `https://www.flightclub.com/${slug}`;
+
+      const salePrice = retail_price_cents_usd
+        ? `$${retail_price_cents_usd / 100}`
+        : `$${lowest_price_cents_usd / 100}`;
+      const regularPrice = lowest_price_cents_usd
+        ? `$${lowest_price_cents_usd / 100}`
+        : `$${salePrice}`;
+
+      return {
+        name: name || "No name available",
+        link: productUrl,
+        salePrice: salePrice,
+        regularPrice: regularPrice,
+      };
+    });
+
+    return {
+      data: formattedProducts,
+      message:
+        formattedProducts.length > 0
+          ? `Successfully found ${formattedProducts.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("API error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
 
 export async function hypefly(query: string): Promise<ScrapingResult> {
   try {

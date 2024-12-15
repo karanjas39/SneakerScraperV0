@@ -1,28 +1,29 @@
-// app/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { SearchInput } from "@/app/components/search-input";
 import { ResultsGrid } from "@/app/components/results-grid";
 import { Product } from "@/app/types";
+
+const scrapers = [
+  "crepdogcrew",
+  "sneakerplug",
+  "vegnonveg",
+  "mainstreet",
+  "nike",
+  "limitedEdt",
+  "hypefly",
+  "superkicks",
+  "footlocker",
+  "goat",
+  "fightclub",
+];
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<Record<string, Product[]>>({});
 
-  const scrapers = [
-    "crepdogcrew",
-    "sneakerplug",
-    "vegnonveg",
-    "mainstreet",
-    "nike",
-    "limitedEdt",
-    "hypefly",
-    "superkicks",
-    "footlocker",
-  ];
-
-  const handleSearch = async (query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
     setResults({});
 
@@ -52,7 +53,7 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const totalProducts = Object.values(results).reduce(
     (sum, products) => sum + products.length,
