@@ -119,6 +119,112 @@ export async function limitedEdt(query: string): Promise<ScrapingResult> {
   }
 }
 
+export async function footlocker(query: string): Promise<ScrapingResult> {
+  try {
+    const limit = 20;
+    const apiUrl = `https://www.footlocker.co.in/rest/appapi/V2/categories/products?searchTerm=${encodeURIComponent(
+      query
+    )}&PageSize=${limit}&sort=popularity&currentPage=1&filter_format=v2&meta=1&currency=INR&country_code=IN&apiVersion=5&deviceType=MSITE&device_os=mweb_windows`;
+
+    const { data } = await axios.get(apiUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
+
+    const products = data.response.products || [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedProducts: Product[] = products.map((product: any) => {
+      const { discountedPrice, price, actionUrl, subTitle } = product;
+
+      const productUrl = `https://www.footlocker.co.in/${actionUrl}`;
+
+      const salePrice = discountedPrice ? `₹${discountedPrice}` : null;
+      const regularPrice = price ? `₹${price}` : `₹${salePrice}`;
+
+      return {
+        name: subTitle || "No name available",
+        link: productUrl,
+        salePrice: salePrice,
+        regularPrice: regularPrice,
+      };
+    });
+
+    return {
+      data: formattedProducts,
+      message:
+        formattedProducts.length > 0
+          ? `Successfully found ${formattedProducts.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("API error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
+
+// export async function goat(query: string): Promise<ScrapingResult> {
+//   try {
+//     const limit = 20;
+//     const apiUrl = `https://ac.cnstrc.com/autocomplete/${encodeURIComponent(
+//       query
+//     )}&?c=ciojs-client-2.54.0&key=key_XT7bjdbvjgECO5d8&i=8062dd95-06e0-4981-9128-926c300bb524&s=1&num_results_Products=${limit}&num_results_Collections=20&_dt=1734231690309`;
+
+//     const { data } = await axios.get(apiUrl, {
+//       headers: {
+//         "User-Agent":
+//           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+//         Accept: "application/json",
+//       },
+//     });
+
+//     const products = data.sections.Products || [];
+
+//     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+//     const formattedProducts: Product[] = products.map((product: any) => {
+//       const { slug, value } = product;
+
+//       const productUrl = `https://www.goat.com/sneakers/${slug}`;
+
+//       const salePrice = discountedPrice ? `₹${discountedPrice}` : null;
+//       const regularPrice = price ? `₹${price}` : `₹${salePrice}`;
+
+//       return {
+//         name: value || "No name available",
+//         link: productUrl,
+//         salePrice: salePrice,
+//         regularPrice: regularPrice,
+//       };
+//     });
+
+//     return {
+//       data: formattedProducts,
+//       message:
+//         formattedProducts.length > 0
+//           ? `Successfully found ${formattedProducts.length} products`
+//           : "No products found",
+//     };
+//   } catch (error) {
+//     console.error("API error:", error);
+//     return {
+//       data: [],
+//       message:
+//         error instanceof Error
+//           ? `Error fetching products: ${error.message}`
+//           : "An unknown error occurred",
+//     };
+//   }
+// }
+
 export async function hypefly(query: string): Promise<ScrapingResult> {
   try {
     const apiUrl = `https://meili.hypefly.co.in/multi-search`;
@@ -189,6 +295,86 @@ export async function hypefly(query: string): Promise<ScrapingResult> {
 
       return {
         name: name || "No name available",
+        link: productUrl,
+        salePrice: salePrice,
+        regularPrice: regularPrice,
+      };
+    });
+
+    return {
+      data: formattedProducts,
+      message:
+        formattedProducts.length > 0
+          ? `Successfully found ${formattedProducts.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("API error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
+
+export async function superkicks(query: string): Promise<ScrapingResult> {
+  try {
+    const apiUrl = `https://5hhij681w3kyii75863elepv-fast.searchtap.net/v2`;
+
+    const requestData = {
+      query: query,
+      collection: "U9SBPF8KJ6XL242L6694NIPG",
+      count: 24,
+      facetCount: 100,
+      fields: ["price", "handle", "discounted_price", "new_title"],
+      filter: "isSearchable = 1 AND discounted_price > 0 AND isActive = 1",
+      geo: {},
+      groupCount: -1,
+      highlightFields: [],
+      numericFacetFilters: {},
+      numericFacets: {},
+      searchFields: ["*"],
+      skip: 0,
+      sort: ["-created_at"],
+      textFacetFilters: {},
+      textFacetQuery: null,
+      textFacets: [
+        "collections",
+        "product_type",
+        "shoe_size_(uk)",
+        "vendor",
+        "apparel_size",
+        "st_gender",
+        "st_color",
+      ],
+      typoTolerance: 1,
+    };
+
+    const { data } = await axios.post(apiUrl, requestData, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+        Authorization: `Bearer C9E395EQTFEZ7X6Y5YYFRWLH`,
+      },
+    });
+
+    const products = data.results || [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedProducts: Product[] = products.map((product: any) => {
+      const { price, handle, discounted_price, new_title } = product;
+
+      const productUrl = `https://www.superkicks.in/products/${handle}`;
+
+      const salePrice = discounted_price ? `₹${discounted_price}` : null;
+      const regularPrice = price ? `₹${price}` : null;
+
+      return {
+        name: new_title || "No name available",
         link: productUrl,
         salePrice: salePrice,
         regularPrice: regularPrice,
