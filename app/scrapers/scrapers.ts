@@ -151,7 +151,7 @@ export async function hypefly(query: string): Promise<ScrapingResult> {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         Accept: "application/json",
-        Authorization: `Bearer ${process.env.HYPEFLY_TOKEN}`,
+        Authorization: `Bearer 2b089e1ba60034cd6382c5c3c13f9d63519448983153abf6daebf3ea9031f25e`,
       },
     });
 
