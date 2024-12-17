@@ -20,6 +20,8 @@ https://www.footlocker.co.in/?ptype=homepage
 
 https://www.goat.com/
 
+https://hustleculture.co.in/
+
 
 Does Not work
 --------------------------------------------
@@ -38,9 +40,7 @@ Left
 
 
 
-https://hustleculture.co.in/
 
-https://hustleculture.co.in/search?q=jordan&type=product&view=bss.product.labels
 
 https://www.nbastore.in/
 

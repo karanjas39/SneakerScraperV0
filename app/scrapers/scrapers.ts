@@ -119,6 +119,61 @@ export async function limitedEdt(query: string): Promise<ScrapingResult> {
   }
 }
 
+export async function hustleCulture(query: string): Promise<ScrapingResult> {
+  try {
+    const url = `https://hustleculture.co.in/search?q=${encodeURIComponent(
+      query
+    )}&type=product&view=bss.product.labels`;
+
+    const { data: productsArray } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const products: Product[] = productsArray.map((product: any) => {
+      const name = product.handle
+        ? product.handle.replace(/-/g, " ").toUpperCase()
+        : "No name available";
+      const regularPrice =
+        product.price_max && product.price_min
+          ? `₹${Math.max(product.price_max, product.price_min) / 100}`
+          : "No regular price available";
+      const salePrice = product.price_min
+        ? `₹${product.price_min / 100}`
+        : "No sale price available";
+      const link = `https://hustleculture.co.in/products/${product.handle}`;
+
+      return {
+        name,
+        link,
+        salePrice,
+        regularPrice,
+      };
+    });
+
+    return {
+      data: products,
+      message:
+        products.length > 0
+          ? `Successfully found ${products.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("Error fetching HustleCulture data:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
+
 export async function footlocker(query: string): Promise<ScrapingResult> {
   try {
     const limit = 20;

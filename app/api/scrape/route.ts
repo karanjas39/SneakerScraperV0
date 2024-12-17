@@ -10,6 +10,7 @@ import {
   footlocker,
   goat,
   fightclub,
+  hustleCulture,
 } from "@/app/scrapers/scrapers";
 import { ScrapingResult } from "@/app/types";
 import { NextRequest, NextResponse } from "next/server";
@@ -29,6 +30,7 @@ const ScrapingService: Record<
   footlocker,
   goat,
   fightclub,
+  hustleCulture,
 };
 
 export async function POST(req: NextRequest): Promise<NextResponse> {

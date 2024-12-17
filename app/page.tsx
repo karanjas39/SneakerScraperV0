@@ -17,6 +17,7 @@ const scrapers = [
   "footlocker",
   "goat",
   "fightclub",
+  "hustleCulture",
 ];
 
 export default function Home() {
