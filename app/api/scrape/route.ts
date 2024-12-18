@@ -11,6 +11,8 @@ import {
   goat,
   fightclub,
   hustleCulture,
+  nbastore,
+  dawntown,
 } from "@/app/scrapers/scrapers";
 import { ScrapingResult } from "@/app/types";
 import { NextRequest, NextResponse } from "next/server";
@@ -31,11 +33,15 @@ const ScrapingService: Record<
   goat,
   fightclub,
   hustleCulture,
+  nbastore,
+  dawntown,
 };
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    const { query, app }: { query?: string; app?: string } = await req.json();
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get("query");
+    const app = searchParams.get("app");
 
     if (!query) {
       return NextResponse.json(

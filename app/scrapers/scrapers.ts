@@ -64,6 +64,152 @@ export async function crepdogcrew(query: string): Promise<ScrapingResult> {
   }
 }
 
+export async function dawntown(query: string): Promise<ScrapingResult> {
+  try {
+    const url = `https://dawntown.co.in/search?type=product&options%5Bprefix%5D=last&q=${encodeURIComponent(
+      query
+    )}`;
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+    });
+    const $ = cheerio.load(data);
+    const products: Product[] = [];
+
+    $("product-card").each((index, element) => {
+      const name = $(element).find(".card__title a").text().trim();
+      const link = `https://dawntown.co.in${$(element)
+        .find(".card__title a")
+        .attr("href")}`;
+
+      const priceEl = $(element).find(".price__current");
+
+      const salePrice = priceEl
+        .text()
+        .trim()
+        .replace(/Rs\.|\s|,|Unavailable/g, "");
+
+      // Extract regular price
+      const regularPriceEl = $(element).find(".price__was");
+      let regularPrice =
+        regularPriceEl.length > 0
+          ? regularPriceEl
+              .text()
+              .trim()
+              .replace(/Rs\.|\s|,/g, "")
+          : null;
+
+      // If no regular price, use sale price
+      if (!regularPrice && salePrice) {
+        regularPrice = salePrice;
+      }
+
+      if (name && link) {
+        products.push({
+          name,
+          link,
+          salePrice: salePrice ? `₹${salePrice}` : null,
+          regularPrice: regularPrice ? `₹${regularPrice}` : null,
+        });
+      }
+    });
+
+    return {
+      data: products,
+      message:
+        products.length > 0
+          ? `Successfully found ${products.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("Scraping error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
+
+export async function nbastore(query: string): Promise<ScrapingResult> {
+  try {
+    const url = `https://www.nbastore.in/brands/${encodeURIComponent(
+      query
+    )}?sort=&category_ids%5B%5D=2`;
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      },
+    });
+
+    const $ = cheerio.load(data);
+    const products: Product[] = [];
+
+    $(".product").each((_, element) => {
+      const productAnchor = $(element).find("a.gt-product-click");
+      const name = productAnchor.attr("data-product")
+        ? JSON.parse(productAnchor.attr("data-product") || "{}").name
+        : "No name available";
+
+      const link = productAnchor.attr("href") || null;
+      const productUrl = link ? `${link}` : null;
+
+      const salePriceEl = $(element)
+        .find(".product-price .bold")
+        .first()
+        .text()
+        .replace(/₹|\s|,/g, "");
+
+      const regularPriceEl = $(element)
+        .find(".product-price .f-bold.muted del")
+        .first()
+        .text()
+        .replace(/₹|\s|,/g, "");
+
+      const salePrice = salePriceEl ? `₹${salePriceEl}` : null;
+      const regularPrice =
+        regularPriceEl && regularPriceEl !== salePriceEl
+          ? `₹${regularPriceEl}`
+          : salePrice;
+
+      if (name && productUrl) {
+        products.push({
+          name,
+          link: productUrl,
+          salePrice,
+          regularPrice,
+        });
+      }
+    });
+
+    return {
+      data: products,
+      message:
+        products.length > 0
+          ? `Successfully found ${products.length} products`
+          : "No products found",
+    };
+  } catch (error) {
+    console.error("Scraping error:", error);
+    return {
+      data: [],
+      message:
+        error instanceof Error
+          ? `Error fetching products: ${error.message}`
+          : "An unknown error occurred",
+    };
+  }
+}
+
 export async function limitedEdt(query: string): Promise<ScrapingResult> {
   try {
     const limit = 20;
