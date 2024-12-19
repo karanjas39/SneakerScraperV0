@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, Filter } from "lucide-react";
+import { ArrowUpDown, Filter, Loader2 } from "lucide-react";
 import debounce from "lodash/debounce";
 import { Product, ScrapingResult } from "@/app/types";
 
@@ -25,6 +25,7 @@ const SneakerScrapingDashboard: React.FC = () => {
   const [results, setResults] = useState<ScraperResult[]>([]);
   const [sortByPrice, setSortByPrice] = useState(false);
   const [showOnlySales, setShowOnlySales] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Helper function to safely convert price string to number
   const safeNumber = (price: string | null): number => {
@@ -35,8 +36,12 @@ const SneakerScrapingDashboard: React.FC = () => {
   };
 
   const fetchResults = async (searchQuery: string) => {
-    if (!searchQuery) return;
+    if (!searchQuery) {
+      setResults([]);
+      return;
+    }
 
+    setIsLoading(true);
     try {
       const response = await fetch(
         `/api/scrape?query=${encodeURIComponent(searchQuery)}`
@@ -45,6 +50,8 @@ const SneakerScrapingDashboard: React.FC = () => {
       setResults(data.data || []);
     } catch (error) {
       console.error("Fetch error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -186,12 +193,19 @@ const SneakerScrapingDashboard: React.FC = () => {
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-4 sm:w-[60%] w-[90%] mx-auto flex-col">
-        <Input
-          placeholder="Search for sneakers..."
-          value={query}
-          onChange={handleInputChange}
-          className="flex-grow"
-        />
+        <div className="relative w-full">
+          <Input
+            placeholder="Search for sneakers..."
+            value={query}
+            onChange={handleInputChange}
+            className="flex-grow"
+          />
+          {isLoading && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+            </div>
+          )}
+        </div>
 
         <div>
           <div className="flex items-center space-x-2">
@@ -237,7 +251,9 @@ const SneakerScrapingDashboard: React.FC = () => {
         processedResults.map(renderResultSection)
       ) : (
         <div className="text-center text-gray-500 mt-4">
-          {results.length === 0
+          {isLoading
+            ? "Searching..."
+            : results.length === 0
             ? "No results yet. Enter a query to search."
             : "No products match the current filter."}
         </div>
